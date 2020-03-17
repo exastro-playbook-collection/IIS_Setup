@@ -1,0 +1,8 @@
+---
+command:
+  - "Get-ItemProperty -Path HKLM:\\SOFTWARE\\Microsoft\\InetStp"
+  - "Get-ChildItem -Recurse {{ VAR_IISInstall_Path }}"
+  - "Get-Content {{ VAR_IISInstall_Path }}\\config\\applicationHost.config"
+  - "Get-IISAppPool"
+  - "Get-IISSite"
+  - "Get-WebApplication"

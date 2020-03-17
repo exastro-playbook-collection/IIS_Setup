@@ -1,0 +1,201 @@
+---
+# not check `COMPLIANCE020201` by ansible-lint
+  - name: check OS version
+    fail: msg="This role is only for Microsoft Windows Server 2016."
+    when: VAR_IIS_OS_Version not in ansible_distribution
+
+# check iis installed
+  - name: check iis installed
+    raw: Get-WindowsFeature -Name Web-Server,Web-WebServer,Web-Security,Web-Filtering,Web-Common-Http,Web-Http-Errors,Web-Static-Content,Web-Default-Doc,Web-Dir-Browsing,Web-Performance,Web-Stat-Compression,Web-Health,Web-Http-Logging
+    register: webserver_state
+    changed_when: webserver_state.rc != 0
+
+  - name: get iis installed result
+    fail: msg="IIS is not installed, please install IIS."
+    when: "'Available' in webserver_state.stdout or ' InstallPending' in webserver_state.stdout or ' UninstallPending' in webserver_state.stdout"
+
+  # check iis manager installed
+  - name: check iis manage installed
+    raw: Get-WindowsFeature -Name Web-Mgmt-Console
+    register: console_state
+    changed_when: console_state.rc != 0
+
+  - name: get iis namage installed result
+    fail: msg="Microsoft.Web.Administration.dll is not installed, please install IIS."
+    when: "'Installed' not in console_state.stdout"
+
+  - name: change iis state
+    win_command: iisreset /start
+
+ # set iis
+  - name: check param VAR_WEBSITE_INFO.physical_path
+    block:
+      - name: VAR_WEBSITE_INFO.physical_path will be created if it does not exist
+        win_file:
+          path: "{{ VAR_WEBSITE_INFO.physical_path }}"
+          state: directory
+
+      - name: change %SystemDrive% to C
+        win_shell: "echo {{ VAR_WEBSITE_INFO.physical_path }}"
+        args:
+          executable: cmd
+        register: website_cmd
+
+      - name: set website_physical_path
+        set_fact:
+          website_physical_path: "{{ website_cmd.stdout| trim }}"
+    when: (VAR_WEBSITE_INFO is defined) and (VAR_WEBSITE_INFO is not none) and (VAR_WEBSITE_INFO.physical_path is defined) and (VAR_WEBSITE_INFO.physical_path is not none)
+
+
+
+  - name: VAR_WEBAPP_INFO.physical_path will be created if it does not exist
+    block:
+      - name: VAR_WEBAPP_INFO.physical_path will be created if it does not exist
+        win_file:
+          path: "{{ item.physical_path }}"
+          state: directory
+        when: (item.physical_path is defined) and (item.physical_path is not none)
+        with_items: "{{ VAR_WEBAPP_INFO }}"
+    when: VAR_WEBAPP_INFO is defined
+
+  - name: VAR_VIRTUALDIR_INFO.physical_path will be created if it does not exist
+    block:
+      - name: VAR_VIRTUALDIR_INFO.physical_path will be created if it does not exist
+        win_file:
+          path: "{{ item.physical_path }}"
+          state: directory
+        when: (item.physical_path is defined) and (item.physical_path is not none)
+        with_items: "{{ VAR_VIRTUALDIR_INFO }}"
+    when: VAR_VIRTUALDIR_INFO is defined
+
+  - name: check VAR_VIRTUALDIR_INFO.application
+    fail:
+      msg: "VAR_VIRTUALDIR_INFO.application should be not NULL."
+    with_items: "{{ VAR_VIRTUALDIR_INFO }}"
+    when:
+      - VAR_VIRTUALDIR_INFO is defined
+      - VAR_VIRTUALDIR_INFO is not none
+      - item.application is defined
+      - "(item.application is none) or (item.application == '')"
+
+  - name: when VAR_WEBAPPPOOL_ATTRI defined to manage a webapppool
+    win_iis_webapppool:
+      name: "{{ VAR_WEBAPPPOOL_NAME }}"
+      state: started
+      attributes:
+        "{{ VAR_WEBAPPPOOL_ATTRI }}"
+    when: (VAR_WEBAPPPOOL_ATTRI is defined) and (VAR_WEBAPPPOOL_ATTRI is not none)
+
+  - name: when VAR_WEBAPPPOOL_ATTRI not defined to manage a webapppool
+    win_iis_webapppool:
+      name: "{{ VAR_WEBAPPPOOL_NAME }}"
+      state: started
+    when: (VAR_WEBAPPPOOL_ATTRI is not defined) or (VAR_WEBAPPPOOL_ATTRI is none)
+
+  - name: when not stop check website state parameters
+    set_fact:
+      VAR_WEBSITE_State_Tmp: started
+    when: (VAR_WEBSITE_State is defined) and (VAR_WEBSITE_State | upper != "STOP")
+
+  - name: when stop check website state parameters
+    set_fact:
+      VAR_WEBSITE_State_Tmp: stopped
+    when: (VAR_WEBSITE_State is defined) and (VAR_WEBSITE_State | upper == "STOP")
+
+  - name: when has parameters to manage website
+    win_iis_website:
+      name: "{{ VAR_WEBSITE_NAME }}"
+      application_pool: "{{ VAR_WEBAPPPOOL_NAME }}"
+      hostname: "{{ VAR_WEBSITE_INFO.hostname | default(omit) }}"
+      ip: "{{ VAR_WEBSITE_INFO.ip | default(omit) }}"
+      parameters: "{{ VAR_WEBSITE_INFO.parameters }}"
+      physical_path: "{{ website_physical_path }}"
+      port: "{{ VAR_WEBSITE_INFO.port | default(omit) }}"
+      state: "{{ VAR_WEBSITE_State_Tmp | default(omit) }}"
+    when: (VAR_WEBSITE_INFO.parameters is defined) and (VAR_WEBSITE_INFO.parameters is not none) and (VAR_WEBSITE_INFO is defined) and (VAR_WEBSITE_INFO is not none)
+
+  - name: when parameters defined but no value to manage website
+    win_iis_website:
+      name: "{{ VAR_WEBSITE_NAME }}"
+      application_pool: "{{ VAR_WEBAPPPOOL_NAME }}"
+      hostname: "{{ VAR_WEBSITE_INFO.hostname | default(omit) }}"
+      ip: "{{ VAR_WEBSITE_INFO.ip | default(omit) }}"
+      physical_path: "{{ website_physical_path }}"
+      port: "{{ VAR_WEBSITE_INFO.port | default(omit) }}"
+      state: "{{ VAR_WEBSITE_State_Tmp | default(omit) }}"
+    when: (VAR_WEBSITE_INFO.parameters is defined) and (VAR_WEBSITE_INFO.parameters is none) and (VAR_WEBSITE_INFO is defined) and (VAR_WEBSITE_INFO is not none)
+
+  - name: when parameters not defined to manage website
+    win_iis_website:
+      name: "{{ VAR_WEBSITE_NAME }}"
+      application_pool: "{{ VAR_WEBAPPPOOL_NAME }}"
+      hostname: "{{ VAR_WEBSITE_INFO.hostname | default(omit) }}"
+      ip: "{{ VAR_WEBSITE_INFO.ip | default(omit) }}"
+      physical_path: "{{ website_physical_path }}"
+      port: "{{ VAR_WEBSITE_INFO.port | default(omit) }}"
+      state: "{{ VAR_WEBSITE_State_Tmp | default(omit) }}"
+    when: (VAR_WEBSITE_INFO.parameters is not defined) and (VAR_WEBSITE_INFO is defined) and (VAR_WEBSITE_INFO is not none)
+
+  # - name: when VAR_WEBSITE_INFO not defined to manage website
+    # win_iis_website:
+      # name: "{{ VAR_WEBSITE_NAME }}"
+      # application_pool: "{{ VAR_WEBAPPPOOL_NAME }}"
+      # state: "{{ VAR_WEBSITE_State_Tmp }}"
+    # when: (VAR_WEBSITE_INFO is not defined) or (VAR_WEBSITE_INFO is none)
+
+  - name: get all sites
+    raw: "Get-IISSite | Format-List -Property Name"
+    register: allSites
+
+  - name: when VAR_WEBSITE_NAME is defined and VAR_WEBSITE_INFO is undefined,check site exist
+    fail:
+      msg: "{{ VAR_WEBSITE_NAME }} is not exist,please defined parameter 'VAR_WEBSITE_INFO' to create this site."
+    when:
+      - VAR_WEBSITE_NAME is defined
+      - (VAR_WEBSITE_INFO is undefined) or (VAR_WEBSITE_INFO is none)
+      - "('Name : '+VAR_WEBSITE_NAME) not in allSites.stdout_lines"
+
+  - name: manage webbinding
+    win_iis_webbinding:
+      name: "{{ VAR_WEBSITE_NAME }}"
+      certificate_hash: "{{ item.certificate_hash | default(omit) }}"
+      certificate_store_name: "{{ item.certificate_store_name | default(omit) }}"
+      host_header: "{{ item.host_header | default(omit) }}"
+      ip: "{{ item.ip | default(omit) }}"
+      port: "{{ item.port | default(omit) }}"
+      protocol: "{{ item.protocol | default(omit) }}"
+      ssl_flags: "{{ item.ssl_flags | default(omit) }}"
+    with_items: "{{ VAR_WEBBINDING_INFO }}"
+    when: VAR_WEBBINDING_INFO is defined
+
+  - name: manage_webapp
+    win_iis_webapplication:
+      name: "{{ item.name }}"
+      application_pool: "{{ item.poolname | default(omit) }}"
+      site: "{{ VAR_WEBSITE_NAME }}"
+      physical_path: "{{ item.physical_path }}"
+    with_items: "{{ VAR_WEBAPP_INFO }}"
+    when: VAR_WEBAPP_INFO is defined
+
+  - name: get all application
+    raw: "Get-WebApplication | Format-List -Property Path"
+    register: allApplication
+
+  - name: when VAR_VIRTUALDIR_INFO is defined and application is defined
+    fail:
+      msg: " {{ item.application }} is not exist,please to create this application."
+    with_items: "{{ VAR_VIRTUALDIR_INFO }}"
+    when:
+      - VAR_VIRTUALDIR_INFO is defined
+      - VAR_VIRTUALDIR_INFO is not none
+      - item.application is defined
+      - "('path : /'+item.application) not in allApplication.stdout_lines"
+
+  - name: manage_virtualdir
+    win_iis_virtualdirectory:
+      name: "{{ item.name }}"
+      application: "{{ item.application | default(omit) }}"
+      site: "{{ VAR_WEBSITE_NAME }}"
+      physical_path: "{{ item.physical_path }}"
+    with_items: "{{ VAR_VIRTUALDIR_INFO }}"
+    when: VAR_VIRTUALDIR_INFO is defined

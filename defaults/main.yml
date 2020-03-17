@@ -1,0 +1,29 @@
+---
+
+# # 共通変数 # #
+# VAR_IIS_OS_Version: Windows Server 2016                                         # 管理対象マシンのOSバージョン
+
+# # IIS設定の関連変数 # #
+# WebAppPoolの関連変数
+# VAR_WEBAPPPOOL_NAME: DefaultAppPool                                             # アプリケーションプール名
+# WebAppPoolのattributes情報を設定する
+#VAR_WEBAPPPOOL_ATTRI:                                                          # アプリケーションプールの基本設定
+#    autoStart: true
+#    CLRConfigFile:                                                             # CLRの設定ファイル
+#    enable32BitAppOnWin64: false                                               # 32ビットアプリケーションの有効化
+#    enableConfigurationOverride: true                                          # 構成オーバーライドの有効化
+#    managedPipelineMode: Integrated                                            # マネージパイプラインモード（設定可能の値：Classic、Integrated）
+#    managedRuntimeLoader: webengine4.dll                                       # マネージラインタイムローダー
+#    managedRuntimeVersion: ""                                                  # マネージラインタイムバージョン（設定可能の値：v1.1、v2.0、v4.0）
+#    passAnonymousToken: true                                                   # 匿名トークン
+#    queueLength: 1000                                                          # キューの長さ
+#    startMode: OnDemand                                                        # 開始モード（設定可能の値：AlwaysRunning、OnDemand）
+# WebSiteの関連変数
+# VAR_WEBSITE_NAME: DefaultWebSite                                                # Webサイト名
+#VAR_WEBSITE_INFO:
+#    hostname: localhost                                                        # ホスト名
+#    ip: 127.0.0.1                                                              # IPアドレス
+#    physical_path: "C:\\inetpub\\wwwroot"                                      # 物理パス
+#    port: 80                                                                   # ポート番号
+# ssl
+# VAR_WEBSITE_State: START                                                        # Webサイトが起動するか停止するか指定する（START：起動（デフォルト）；STOP：停止）
