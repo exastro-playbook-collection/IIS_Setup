@@ -18,8 +18,8 @@
 
 - 管理マシン(Ansibleサーバ)
   - Linux系OS（RHEL/CentOS）
-  - Ansible バージョン2.6 (動作確認済：2.6.1)
-  - Python バージョン2.6 または 2.7
+  - Ansible バージョン2.6, 2.9
+  - Python バージョン2.6, 2.7, 3.6
 
 - 管理対象マシン(インストール対象マシン)
   - Windows Server 2016
